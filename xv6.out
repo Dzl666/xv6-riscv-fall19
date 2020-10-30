@@ -1,0 +1,16 @@
+qemu-system-riscv64: warning: No -bios option specified. Not loading a firmware.
+qemu-system-riscv64: warning: This default will change in a future QEMU release. Please use the -bios option to avoid breakages when this happens.
+qemu-system-riscv64: warning: See QEMU's deprecation documentation for details.
+
+xv6 kernel is booting
+
+virtio disk init 0
+hart 1 starting
+hart 2 starting
+init: starting sh
+$ pingpong
+4: received ping
+3: received pong
+$ echo OK
+OK
+$ qemu-system-riscv64: terminating on signal 15 from pid 13250 (make)
