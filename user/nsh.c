@@ -42,7 +42,7 @@ runcmd(char *argv[],int argc)
 {
     int i;
     for(i = 1;i < argc;i++){
-        if(strcmp(argv[i], "|") == 0){    //output redir
+        if(strcmp(argv[i], "|") == 0){    //pipe
             argv[i] = '\0';
             pipecmd(argv, argc, i);
             break;
