@@ -38,6 +38,16 @@ sys_wait(void)
   return wait(p);
 }
 
+/*
+ *sbrk()系统调用：为进程分配或回收内存。
+ *参数代表要分配的字节数,返回新分配内存的地址。
+ *
+ *如果给的参数是正数,growproc使用uvmalloc来分配内存。
+ *如果给的参数是负数,使用uvmdealloc来释放内存。
+ *
+ *uvmalloc首先使用kalloc来分配物理内存,然后再用mappages把PTE加到用户的页表里。
+ *uvmdealloc调用uvmunmap,首先用walk来找到对应的PTE,然后使用kfree来释放相应的物理内存。
+ */
 uint64
 sys_sbrk(void)
 {

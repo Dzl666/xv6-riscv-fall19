@@ -18,18 +18,26 @@ struct run {
   struct run *next;
 };
 
-struct {
+struct kmem{
   struct spinlock lock;
   struct run *freelist;
-} kmem;
+};
+
+struct kmem kmems[NCPU];
 
 void
 kinit()
 {
-  initlock(&kmem.lock, "kmem");
-  freerange(end, (void*)PHYSTOP);
+  int i;
+  for(i = 0;i < NCPU;i++)
+    initlock(&kmems[i].lock, "kmem");
+  freerange(end, (void*)PHYSTOP);   //把空闲内存加到链表里
 }
 
+/*
+ *将end~PHYSTOP之间的地址空间按照页面大小4KB切分,
+ *并调用kfree()将页面从头部插入到链表kmem.freelist中进行管理
+ */
 void
 freerange(void *pa_start, void *pa_end)
 {
@@ -46,7 +54,13 @@ freerange(void *pa_start, void *pa_end)
 void
 kfree(void *pa)
 {
+  //int id;
+  int cpu_id;
   struct run *r;
+
+  push_off();
+  cpu_id = cpuid();
+  pop_off();
 
   if(((uint64)pa % PGSIZE) != 0 || (char*)pa < end || (uint64)pa >= PHYSTOP)
     panic("kfree");
@@ -56,10 +70,33 @@ kfree(void *pa)
 
   r = (struct run*)pa;
 
-  acquire(&kmem.lock);
-  r->next = kmem.freelist;
-  kmem.freelist = r;
-  release(&kmem.lock);
+  //id = (uint64)pa / ((PHYSTOP - (uint64)end) / NCPU);
+  acquire(&kmems[cpu_id].lock);
+  r->next = kmems[cpu_id].freelist;
+  kmems[cpu_id].freelist = r;
+  release(&kmems[cpu_id].lock);
+}
+
+void *
+ksteal(int cpu_id)
+{
+  int id;
+  struct run *r = 0;
+
+  for(id = 0;id < NCPU;id++){
+    if(holding(&kmems[id].lock))    //找到未锁上的list
+      continue;
+    
+    acquire(&kmems[id].lock);
+    if(kmems[id].freelist){       //list还有剩余空间
+      r = kmems[id].freelist;
+      kmems[id].freelist = r->next;
+      release(&kmems[id].lock);
+      return (void*)r;
+    }
+    release(&kmems[id].lock);
+  }
+  return (void*)r;
 }
 
 // Allocate one 4096-byte page of physical memory.
@@ -68,13 +105,21 @@ kfree(void *pa)
 void *
 kalloc(void)
 {
+  int cpu_id;
   struct run *r;
 
-  acquire(&kmem.lock);
-  r = kmem.freelist;
-  if(r)
-    kmem.freelist = r->next;
-  release(&kmem.lock);
+  push_off();
+  cpu_id = cpuid();
+  pop_off();
+
+  acquire(&kmems[cpu_id].lock);
+  r = kmems[cpu_id].freelist;
+  if(r)       //当前list仍有空间
+    kmems[cpu_id].freelist = r->next;
+  release(&kmems[cpu_id].lock);
+
+  if(!r)      //当前list已满，要窃取空间
+    r = ksteal(cpu_id);
 
   if(r)
     memset((char*)r, 5, PGSIZE); // fill with junk
