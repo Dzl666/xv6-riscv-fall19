@@ -1,0 +1,14 @@
+*** Now run 'gdb'.
+
+xv6 kernel is booting
+
+bd: memory sz is 134049792 bytes; allocate an size array of length 24
+bd: 2097936 meta bytes for managing 134217728 bytes of memory
+bd: 0x29000 bytes unavailable
+virtio disk init 0
+hart 2 starting
+hart 1 starting
+init: starting sh
+$ alloctest
+filetest: start
+qemu-system-riscv64: terminating on signal 2
